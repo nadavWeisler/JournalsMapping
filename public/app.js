@@ -46,7 +46,16 @@
     fieldsGrid: document.getElementById("fields-grid"),
     fieldsCount: document.getElementById("fields-count"),
     fieldFilter: document.getElementById("field-filter"),
+    exploreTitle: document.getElementById("explore-title"),
+    exploreLede: document.getElementById("explore-lede"),
+    detailArticle: document.getElementById("detail-article"),
+    detailBack: document.getElementById("detail-back"),
+    screens: document.querySelectorAll("[data-screen]"),
+    navLinks: document.querySelectorAll(".site-nav a[data-nav]"),
   };
+
+  const journalByIssn = new Map();
+  const conferenceByAcronym = new Map();
 
   if (els.disclaimer) els.disclaimer.textContent = data.disclaimer;
   if (els.dataUpdated) els.dataUpdated.textContent = data.updated;
@@ -150,6 +159,18 @@
   }
 
   annotatePaths(data.root);
+  indexRecords(data.root);
+
+  function indexRecords(node) {
+    const domainPath = node._pathName || node.name;
+    for (const journal of node.journals || []) {
+      journalByIssn.set(journal.issn, { ...journal, domainPath });
+    }
+    for (const conference of node.conferences || []) {
+      conferenceByAcronym.set(conference.acronym, { ...conference, domainPath });
+    }
+    for (const child of node.children || []) indexRecords(child);
+  }
 
   function listFieldNodes(node = data.root, out = []) {
     // Field tiles: nodes that contain journals or are mid-level research fields.
@@ -205,8 +226,7 @@
         <span class="fmeta">${metaBits.join(" · ")}</span>`;
       btn.addEventListener("click", () => {
         state.path = node._nodeTrail?.length ? [...node._nodeTrail] : [data.root, node];
-        render();
-        document.getElementById("explore")?.scrollIntoView({ behavior: "smooth" });
+        go("#/journals");
       });
       els.fieldsGrid.appendChild(btn);
     });
@@ -336,7 +356,6 @@
       btn.addEventListener("click", () => {
         state.path = [...state.path, child];
         render();
-        els.journals.scrollIntoView({ behavior: "smooth", block: "nearest" });
       });
       els.children.appendChild(btn);
     });
@@ -386,6 +405,14 @@
         conferences ? "Conference format mix" : "Impact factor histogram"
       );
       els.ifBars.classList.toggle("is-format", conferences);
+    }
+    if (els.exploreTitle) {
+      els.exploreTitle.textContent = conferences ? "Conferences" : "Journals";
+    }
+    if (els.exploreLede) {
+      els.exploreLede.textContent = conferences
+        ? "Catalog of conference series in this domain. Filter by format and cadence, then open a series for its record. Labels are illustrative — not ranks."
+        : "Catalog of journals in this domain. Filter by quartile, impact, or predatory status, then open a title for its record. Figures are illustrative.";
     }
 
     const options = conferences
@@ -457,7 +484,7 @@
       .filter(Boolean)
       .map(
         (s) =>
-          `<a class="source-chip" href="#sources" title="${escapeHtml(s.provider)}">${escapeHtml(
+          `<a class="source-chip" href="#/sources" title="${escapeHtml(s.provider)}">${escapeHtml(
             s.field
           )}</a>`
       )
@@ -483,7 +510,7 @@
       all.length ? (all.reduce((s, j) => s + j.if, 0) / all.length).toFixed(1) : "—"
     }</div>${
       conferencesHere
-        ? `<div style="margin-top:0.35rem">${conferencesHere} conferences in this domain</div>`
+        ? `<div style="margin-top:0.35rem"><a href="#/conferences">${conferencesHere} conferences in this domain</a></div>`
         : ""
     }`;
 
@@ -501,26 +528,11 @@
 
     filtered.forEach((journal, index) => {
       const li = document.createElement("li");
-      li.className = `journal${journal.predatory ? " is-predatory" : ""}`;
-      li.style.animationDelay = `${Math.min(index, 12) * 0.03}s`;
-      const pct = Math.min(100, (journal.if / globalMaxIf) * 100);
-      const sourceIds = journal.metricSourceIds?.length
-        ? journal.metricSourceIds
-        : journal.predatory
-          ? ["predatory", "jcr", "jcr-quartile"]
-          : ["jcr", "jcr-quartile"];
-      const sourceChips = sourceIds
-        .map((id) => sourceById.get(id))
-        .filter(Boolean)
-        .map(
-          (s) =>
-            `<a class="source-chip" href="#sources" title="${escapeHtml(s.provider)}">${escapeHtml(
-              s.field
-            )}</a>`
-        )
-        .join("");
-
-      li.innerHTML = `
+      const link = document.createElement("a");
+      link.className = `journal journal-link${journal.predatory ? " is-predatory" : ""}`;
+      link.href = `#/journal/${encodeURIComponent(journal.issn)}`;
+      link.style.animationDelay = `${Math.min(index, 12) * 0.03}s`;
+      link.innerHTML = `
         <div>
           <div class="journal-top">
             <h4>${escapeHtml(journal.name)}</h4>
@@ -528,19 +540,15 @@
             ${journal.predatory ? '<span class="badge badge-pred">Predatory</span>' : ""}
             ${journal.openAccess ? '<span class="badge badge-oa">Open access</span>' : ""}
           </div>
-          <p class="journal-meta">${escapeHtml(journal.publisher)} · ISSN ${escapeHtml(
-            journal.issn
-          )} · ${escapeHtml(journal.domainPath || node.name)}</p>
-          <p class="journal-focus">${escapeHtml(journal.focus || "")}</p>
-          <p class="journal-sources"><span>Metrics basis:</span> ${sourceChips}</p>
+          <p class="journal-meta">${escapeHtml(journal.domainPath || node.name)}</p>
         </div>
         <div class="journal-if">
           <div>
             <div class="value">${journal.if.toFixed(1)}</div>
             <div class="label">Impact factor</div>
           </div>
-          <div class="meter" aria-hidden="true"><span style="width:${pct}%"></span></div>
         </div>`;
+      li.appendChild(link);
       els.journals.appendChild(li);
     });
   }
@@ -561,7 +569,7 @@
       shown of ${all.length} in scope
       <div style="margin-top:0.45rem">Illustrative series only — no CORE, JCR, or Scopus rank stored.</div>${
         journalsHere
-          ? `<div style="margin-top:0.35rem">${journalsHere} journals in this domain</div>`
+          ? `<div style="margin-top:0.35rem"><a href="#/journals">${journalsHere} journals in this domain</a></div>`
           : ""
       }`;
 
@@ -591,24 +599,18 @@
 
     filtered.forEach((conference, index) => {
       const li = document.createElement("li");
-      li.className = "journal is-conference";
-      li.style.animationDelay = `${Math.min(index, 12) * 0.03}s`;
-      li.innerHTML = `
+      const link = document.createElement("a");
+      link.className = "journal journal-link is-conference";
+      link.href = `#/conference/${encodeURIComponent(conference.acronym)}`;
+      link.style.animationDelay = `${Math.min(index, 12) * 0.03}s`;
+      link.innerHTML = `
         <div>
           <div class="journal-top">
             <h4>${escapeHtml(conference.name)}</h4>
             <span class="badge badge-oa">${escapeHtml(conference.acronym)}</span>
             <span class="badge badge-note">Illustrative</span>
           </div>
-          <p class="journal-meta">${escapeHtml(conference.organizer)} · ${escapeHtml(
-            cadenceLabel(conference.cadence)
-          )} ${escapeHtml(formatLabel(conference.format).toLowerCase())} · ${escapeHtml(
-            conference.domainPath || node.name
-          )}</p>
-          <p class="journal-focus">${escapeHtml(conference.focus || "")}</p>
-          <p class="journal-sources"><span>Provenance:</span> ${sourceChips(
-            conference.metricSourceIds
-          )}</p>
+          <p class="journal-meta">${escapeHtml(conference.domainPath || node.name)}</p>
         </div>
         <div class="journal-if">
           <div>
@@ -617,6 +619,7 @@
             <div class="label">Not a rank</div>
           </div>
         </div>`;
+      li.appendChild(link);
       els.journals.appendChild(li);
     });
   }
@@ -632,6 +635,127 @@
       default: {
         const _exhaustive = state.venue;
         throw new Error(`Unexpected venue: ${String(_exhaustive)}`);
+      }
+    }
+  }
+
+  function journalSourceIds(journal) {
+    if (journal.metricSourceIds?.length) return journal.metricSourceIds;
+    if (journal.predatory) return ["predatory", "jcr", "jcr-quartile"];
+    return ["jcr", "jcr-quartile"];
+  }
+
+  function renderMissingDetail(message) {
+    document.title = "Not in snapshot — ATLAS";
+    els.detailArticle.innerHTML = `<h2 id="detail-heading">Not in this snapshot</h2><p class="empty">${message}</p>`;
+  }
+
+  function renderJournalDetail(journal) {
+    const pct = Math.min(100, (journal.if / globalMaxIf) * 100);
+    document.title = `${journal.name} — ATLAS`;
+    if (els.detailBack) {
+      els.detailBack.href = "#/journals";
+      els.detailBack.textContent = "Back to journals";
+    }
+    els.detailArticle.innerHTML = `
+      <article class="journal detail-card${journal.predatory ? " is-predatory" : ""}">
+        <div>
+          <div class="journal-top">
+            <h2 id="detail-heading">${escapeHtml(journal.name)}</h2>
+            <span class="badge badge-${journal.quartile.toLowerCase()}">${journal.quartile}</span>
+            ${journal.predatory ? '<span class="badge badge-pred">Predatory</span>' : ""}
+            ${journal.openAccess ? '<span class="badge badge-oa">Open access</span>' : ""}
+          </div>
+          <p class="journal-meta">${escapeHtml(journal.publisher)} · ISSN ${escapeHtml(
+            journal.issn
+          )} · ${escapeHtml(journal.domainPath || "")}</p>
+          <p class="journal-focus">${escapeHtml(journal.focus || "")}</p>
+          <p class="detail-note">Illustrative impact factor and quartile — not a live Clarivate or Scopus pull.</p>
+          <p class="journal-sources"><span>Metrics basis:</span> ${sourceChips(
+            journalSourceIds(journal)
+          )}</p>
+        </div>
+        <div class="journal-if">
+          <div>
+            <div class="value">${journal.if.toFixed(1)}</div>
+            <div class="label">Impact factor</div>
+          </div>
+          <div class="meter" aria-hidden="true"><span style="width:${pct}%"></span></div>
+        </div>
+      </article>`;
+  }
+
+  function renderConferenceDetail(conference) {
+    document.title = `${conference.name} — ATLAS`;
+    if (els.detailBack) {
+      els.detailBack.href = "#/conferences";
+      els.detailBack.textContent = "Back to conferences";
+    }
+    els.detailArticle.innerHTML = `
+      <article class="journal detail-card is-conference">
+        <div>
+          <div class="journal-top">
+            <h2 id="detail-heading">${escapeHtml(conference.name)}</h2>
+            <span class="badge badge-oa">${escapeHtml(conference.acronym)}</span>
+            <span class="badge badge-note">Illustrative</span>
+          </div>
+          <p class="journal-meta">${escapeHtml(conference.organizer)} · ${escapeHtml(
+            cadenceLabel(conference.cadence)
+          )} ${escapeHtml(formatLabel(conference.format).toLowerCase())} · ${escapeHtml(
+            conference.domainPath || ""
+          )}</p>
+          <p class="journal-focus">${escapeHtml(conference.focus || "")}</p>
+          <p class="detail-note">Illustrative series. No CORE, JCR, or Scopus rank is stored.</p>
+          <p class="journal-sources"><span>Provenance:</span> ${sourceChips(
+            conference.metricSourceIds
+          )}</p>
+        </div>
+        <div class="journal-if">
+          <div>
+            <div class="value value-text">${escapeHtml(cadenceLabel(conference.cadence))}</div>
+            <div class="label">${escapeHtml(formatLabel(conference.format))}</div>
+            <div class="label">Not a rank</div>
+          </div>
+        </div>
+      </article>`;
+  }
+
+  function renderDetail(route) {
+    if (!els.detailArticle) return;
+    switch (route.kind) {
+      case "journal": {
+        const journal = journalByIssn.get(route.id);
+        if (!journal) {
+          if (els.detailBack) {
+            els.detailBack.href = "#/journals";
+            els.detailBack.textContent = "Back to journals";
+          }
+          renderMissingDetail(
+            `No journal with ISSN ${escapeHtml(route.id)} is in this snapshot.`
+          );
+          return;
+        }
+        renderJournalDetail(journal);
+        return;
+      }
+      case "conference": {
+        const conference = conferenceByAcronym.get(route.id);
+        if (!conference) {
+          if (els.detailBack) {
+            els.detailBack.href = "#/conferences";
+            els.detailBack.textContent = "Back to conferences";
+          }
+          renderMissingDetail(
+            `No conference series with acronym ${escapeHtml(route.id)} is in this snapshot.`
+          );
+          return;
+        }
+        renderConferenceDetail(conference);
+        return;
+      }
+      default: {
+        const _exhaustive = route.kind;
+        throw new Error(`Unexpected detail kind: ${String(_exhaustive)}`);
       }
     }
   }
@@ -824,15 +948,6 @@
       });
     });
 
-    document.querySelectorAll('#venue-filters input[name="venue"]').forEach((input) => {
-      input.addEventListener("change", () => {
-        if (!input.checked) return;
-        state.venue = input.value === "conferences" ? "conferences" : "journals";
-        applyVenueChrome();
-        renderList();
-      });
-    });
-
     document.querySelectorAll("#format-filters input, #cadence-filters input").forEach((input) => {
       input.addEventListener("change", () => {
         state.formats = checkedValues("#format-filters input:checked");
@@ -973,8 +1088,146 @@
     });
   }
 
+  function parseHash() {
+    let raw = location.hash || "#/";
+    if (raw.startsWith("#")) raw = raw.slice(1);
+    try {
+      raw = decodeURIComponent(raw);
+    } catch {
+      raw = location.hash.replace(/^#/, "");
+    }
+    const parts = raw.split("/").filter((part) => part.length > 0);
+    const head = parts[0] || "";
+    switch (head) {
+      case "":
+        return { view: "home" };
+      case "journals":
+        return { view: "journals" };
+      case "conferences":
+        return { view: "conferences" };
+      case "journal":
+        return { view: "detail", kind: "journal", id: parts.slice(1).join("/") };
+      case "conference":
+        return { view: "detail", kind: "conference", id: parts.slice(1).join("/") };
+      case "fields":
+        return { view: "fields" };
+      case "legend":
+        return { view: "legend" };
+      case "health":
+        return { view: "health" };
+      case "sources":
+        return { view: "sources" };
+      default:
+        return { view: "home" };
+    }
+  }
+
+  function showScreen(name) {
+    els.screens.forEach((section) => {
+      section.hidden = section.dataset.screen !== name;
+    });
+    if (name === "home") {
+      requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+    }
+  }
+
+  function showCatalog(venue) {
+    state.venue = venue;
+    showScreen("catalog");
+    applyVenueChrome();
+    render();
+    document.title = venue === "conferences" ? "Conferences — ATLAS" : "Journals — ATLAS";
+  }
+
+  function navKeyFor(route) {
+    switch (route.view) {
+      case "home":
+        return "home";
+      case "journals":
+        return "journals";
+      case "conferences":
+        return "conferences";
+      case "fields":
+        return "fields";
+      case "legend":
+        return "legend";
+      case "health":
+        return "health";
+      case "sources":
+        return "sources";
+      case "detail":
+        switch (route.kind) {
+          case "journal":
+            return "journals";
+          case "conference":
+            return "conferences";
+          default: {
+            const _exhaustiveKind = route.kind;
+            throw new Error(`Unexpected detail kind: ${String(_exhaustiveKind)}`);
+          }
+        }
+      default: {
+        const _exhaustive = route.view;
+        throw new Error(`Unexpected view: ${String(_exhaustive)}`);
+      }
+    }
+  }
+
+  function renderRoute() {
+    const route = parseHash();
+    switch (route.view) {
+      case "home":
+        showScreen("home");
+        document.title = "ATLAS — Journals and conferences";
+        break;
+      case "journals":
+        showCatalog("journals");
+        break;
+      case "conferences":
+        showCatalog("conferences");
+        break;
+      case "detail":
+        showScreen("detail");
+        renderDetail(route);
+        break;
+      case "fields":
+        showScreen("fields");
+        document.title = "Fields — ATLAS";
+        break;
+      case "legend":
+        showScreen("legend");
+        document.title = "Legend — ATLAS";
+        break;
+      case "health":
+        showScreen("health");
+        document.title = "Domain health — ATLAS";
+        break;
+      case "sources":
+        showScreen("sources");
+        document.title = "Sources — ATLAS";
+        break;
+      default: {
+        const _exhaustive = route.view;
+        throw new Error(`Unexpected view: ${String(_exhaustive)}`);
+      }
+    }
+    const key = navKeyFor(route);
+    els.navLinks.forEach((link) => {
+      if (link.dataset.nav === key) link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
+    });
+  }
+
+  function go(hash) {
+    if (location.hash === hash) {
+      renderRoute();
+      window.scrollTo(0, 0);
+      return;
+    }
+    location.hash = hash;
+  }
+
   bindFilters();
-  applyVenueChrome();
   if (els.fieldFilter) {
     els.fieldFilter.addEventListener("input", () => {
       renderFieldsCatalog(els.fieldFilter.value);
@@ -983,6 +1236,10 @@
   renderSources();
   renderFieldsCatalog();
   renderHealth();
-  render();
+  window.addEventListener("hashchange", () => {
+    renderRoute();
+    window.scrollTo(0, 0);
+  });
+  renderRoute();
   initHeroCanvas();
 })();

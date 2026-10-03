@@ -11,6 +11,8 @@ Interactive static site for exploring academic journals and conferences by domai
 
 Conference rows do **not** include journal quartiles, predatory flags, acceptance rates, or CORE / JCR / Scopus ranks. Format and cadence are illustrative labels for navigation, not a ranking.
 
+The site is separate screens, not one long page: a **journals catalog**, a **conferences catalog**, and a **detail** view for one journal or conference (`#/journals`, `#/conferences`, `#/journal/<issn>`, `#/conference/<acronym>`). Fields, legend, domain health, and sources are screens of their own.
+
 ## Local preview
 
 ```bash
@@ -26,7 +28,7 @@ npm run coverage          # merge coverage JSON expansions + validate
 npm run expand            # full rebuild helpers + coverage + validate
 ```
 
-Dataset scale (illustrative snapshot): **~850 journals** and a **modest conference set** across **~300 domains**, with an on-page **All fields** catalog. The conference list is a handful of widely known series placed in the existing tree so drill-down and filters have something to show — not a ranking database.
+Dataset scale (illustrative snapshot): **~850 journals** and a **modest conference set** across **~300 domains**. The conference list is a handful of widely known series placed in the existing tree so drill-down and filters have something to show — not a ranking database.
 
 ## GitHub Pages
 

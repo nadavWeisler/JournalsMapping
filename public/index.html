@@ -17,24 +17,25 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <a class="skip-link" href="#explore">Skip to explorer</a>
+    <a class="skip-link" href="#content">Skip to content</a>
 
     <header class="site-header">
-      <div class="brand">
+      <a class="brand" href="#/">
         <span class="brand-mark" aria-hidden="true"></span>
         <span class="brand-name">ATLAS</span>
-      </div>
+      </a>
       <nav class="site-nav" aria-label="Primary">
-        <a href="#explore">Explore</a>
-        <a href="#fields">All fields</a>
-        <a href="#legend">Legend</a>
-        <a href="#health">Domain health</a>
-        <a href="#sources">Sources</a>
+        <a href="#/journals" data-nav="journals">Journals</a>
+        <a href="#/conferences" data-nav="conferences">Conferences</a>
+        <a href="#/fields" data-nav="fields">Fields</a>
+        <a href="#/legend" data-nav="legend">Legend</a>
+        <a href="#/health" data-nav="health">Health</a>
+        <a href="#/sources" data-nav="sources">Sources</a>
       </nav>
     </header>
 
-    <main>
-      <section class="hero" aria-labelledby="hero-brand">
+    <main id="content">
+      <section class="hero view" id="view-home" data-screen="home" aria-labelledby="hero-brand">
         <div class="hero-visual" aria-hidden="true">
           <canvas id="hero-canvas"></canvas>
           <div class="hero-wash"></div>
@@ -48,13 +49,13 @@
             snapshot are illustrative.
           </p>
           <div class="hero-cta">
-            <a class="btn btn-primary" href="#explore">Explore domains</a>
-            <a class="btn btn-ghost" href="#legend">How to read status</a>
+            <a class="btn btn-primary" href="#/journals">Browse journals</a>
+            <a class="btn btn-ghost" href="#/conferences">Browse conferences</a>
           </div>
         </div>
       </section>
 
-      <section class="legend" id="legend" aria-labelledby="legend-title">
+      <section class="legend view" id="view-legend" data-screen="legend" hidden aria-labelledby="legend-title">
         <div class="section-head">
           <h2 id="legend-title">Status at a glance</h2>
           <p>
@@ -130,12 +131,12 @@
         </div>
       </section>
 
-      <section class="fields-index" id="fields" aria-labelledby="fields-title">
+      <section class="fields-index view" id="view-fields" data-screen="fields" hidden aria-labelledby="fields-title">
         <div class="section-head">
           <h2 id="fields-title">All fields</h2>
           <p>
-            Full catalog of research fields in this map. Open any field to drill
-            into its journals and conferences.
+            Full catalog of research fields in this map. Open a field to see its
+            journals. Use Conferences for series in that same domain.
           </p>
         </div>
         <div class="fields-toolbar">
@@ -148,32 +149,18 @@
         <div class="fields-grid" id="fields-grid"></div>
       </section>
 
-      <section class="explore" id="explore" aria-labelledby="explore-title">
+      <section class="explore view" id="view-catalog" data-screen="catalog" hidden aria-labelledby="explore-title">
         <div class="section-head">
-          <h2 id="explore-title">Domain explorer</h2>
-          <p>
-            Click deeper into subdomains. Switch between journals and conferences.
-            Journal filters cover quartile, impact, and predatory status.
-            Conference filters cover format and cadence — not ranks.
+          <h2 id="explore-title">Journals</h2>
+          <p id="explore-lede">
+            Catalog of journals in this domain. Filter by quartile, impact, or
+            predatory status, then open a title for its record. Figures are
+            illustrative.
           </p>
         </div>
 
         <div class="explorer-shell">
           <aside class="explorer-controls" aria-label="Filters">
-            <fieldset class="field" id="venue-filters">
-              <legend>Show</legend>
-              <div class="chip-row">
-                <label class="chip"
-                  ><input type="radio" name="venue" value="journals" checked />
-                  Journals</label
-                >
-                <label class="chip"
-                  ><input type="radio" name="venue" value="conferences" />
-                  Conferences</label
-                >
-              </div>
-            </fieldset>
-
             <label class="field">
               <span id="search-label">Search journals</span>
               <input
@@ -314,7 +301,14 @@
         </div>
       </section>
 
-      <section class="health" id="health" aria-labelledby="health-title">
+      <section class="detail view" id="view-detail" data-screen="detail" hidden aria-labelledby="detail-heading">
+        <div class="detail-wrap">
+          <p class="detail-back"><a id="detail-back" href="#/journals">Back to journals</a></p>
+          <div id="detail-article"></div>
+        </div>
+      </section>
+
+      <section class="health view" id="view-health" data-screen="health" hidden aria-labelledby="health-title">
         <div class="section-head">
           <h2 id="health-title">Domain health</h2>
           <p>
@@ -326,7 +320,7 @@
         <div class="health-chart" id="health-chart"></div>
       </section>
 
-      <section class="sources" id="sources" aria-labelledby="sources-title">
+      <section class="sources view" id="view-sources" data-screen="sources" hidden aria-labelledby="sources-title">
         <div class="section-head">
           <h2 id="sources-title">Data sources</h2>
           <p id="fetch-method">
